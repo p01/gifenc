@@ -1,5 +1,5 @@
 import constants from "./constants.js";
-import lzwEncode from "./lzwEncode";
+import lzwEncode from "./lzwEncode.js";
 import createStream from "./stream.js";
 import quantize from "./pnnquant2.js";
 
@@ -9,8 +9,8 @@ import {
   nearestColorIndex,
   nearestColor,
   nearestColorIndexWithDistance,
-  colorSnap,
-} from "./palettize";
+  snapColorsToPalette,
+} from "./palettize.js";
 
 function GIFEncoder(opt = {}) {
   const { initialCapacity = 4096, auto = true } = opt;
@@ -288,7 +288,7 @@ export {
   nearestColorIndex,
   nearestColor,
   nearestColorIndexWithDistance,
-  colorSnap,
+  snapColorsToPalette,
 };
 
 export default GIFEncoder;
