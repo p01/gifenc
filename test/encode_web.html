@@ -21,7 +21,12 @@
   <script type='module'>
     import {
       GIFEncoder, quantize, applyPalette
-    } from '/dist/gifenc.esm.js';
+    } from '/src/index.js';
+
+    // Or import the bundled ESM version:
+    // import {
+    //   GIFEncoder, quantize, applyPalette
+    // } from '/dist/gifenc.esm.js';
 
     encode();
 
@@ -57,6 +62,8 @@
       // Setup an encoder that we will write frames into
       const gif = GIFEncoder();
 
+      console.time('encode');
+
       // We use for 'of' to loop with async await
       for (let i of frames) {
         // a t value 0..1 to animate the frame
@@ -86,6 +93,8 @@
 
       // Finalize stream
       gif.finish();
+
+      console.timeEnd('encode');
 
       // Get a direct typed array view into the buffer to avoid copying it
       const buffer = gif.bytesView();

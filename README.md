@@ -5,8 +5,9 @@
 A fast and lightweight pure-JavaScript GIF encoder. Features:
 
 - Supports many standard GIF features: image, animation, transparency
-- Highly optimized for V8
-- Small library footprint (5KB before GZIP)
+- Works in browser and Node.js (ESM + CJS)
+- Highly optimized for V8 (150 1024x1024px frames takes about 2.1 seconds with workers in Chrome)
+- Small library footprint (9KB before GZIP)
 - Can be used across multiple web workers for multi-core devices
 - Allows full control over encoding indexed bitmaps & per frame color palette
 - Fast built-in color quantizer based on a port of PnnQuant.js, which is based on "Pairwise Nearest Neighbor Clustering" [1](https://pdfs.semanticscholar.org/68b4/236e77d6026943ffa009d8b3553ace09a922.pdf) [2](https://github.com/mcychan/PnnQuant.js) [3](https://github.com/mcychan/nQuant.j2se)
@@ -25,16 +26,16 @@ Some features that could be explored in a future version:
 
 ## Example
 
-You can see a simple example [here](https://codepen.io/mattdesl/full/vYypMXv).
+You can see a simple browser example [here](https://codepen.io/mattdesl/full/vYypMXv).
 
 You can see a more advanced example of this encoder in action inside [looom-tools.netlify.app](https://looom-tools.netlify.app/).
 
-Also see [./test/node-encode.js](./test/node-encode.js) for a pure Node.js example.
+Also see [./test/encode_node.js](./test/encode_node.js) for a pure Node.js example.
 
 Basic code example:
 
 ```js
-import { GIFEncoder, quantize, applyPalette } from 'https://unpkg.com/gifenc@1.0.1';
+import { GIFEncoder, quantize, applyPalette } from 'https://unpkg.com/gifenc';
 
 // Get your RGBA image into Uint8Array data, such as from canvas
 const { data, width, height } = /* ... getImageData() ... */;
@@ -164,14 +165,21 @@ Same as above, but returns a tuple of `index` and `distance` (euclidean distance
 
 ## Web Workers
 
-Currently there is no API or example for use with Web Workers, but there are a number of approaches that could be taken. The simplest, and the one used in my [Looom exporter](https://github.com/mattdesl/looom-tools/blob/dd04eb2985a8defec3dc9874600ca033bda5d96f/site/components/record.js#L250), is to:
+For the best speed, you should use workers to split this work across multiple threads. Compare these encoding speeds with 150 frames of 1024x1024px GIF in Chrome:
+
+- Main thread only: ~5 seconds
+- Split across 4 workers: ~2 seconds
+
+This library will run fine in a worker with ES support, but there is currently no built-in worker API, and it's up to the developer to implement their own worker architecture and handle bundling.
+
+The simplest architecture, and the one used in my [Looom exporter](https://github.com/mattdesl/looom-tools/blob/dd04eb2985a8defec3dc9874600ca033bda5d96f/site/components/record.js#L250), is to:
 
 - Send the RGBA pixel data of each frame to one worker amongst a pool of multiple workers
 - In the worker, do quantization, apply palette, and then use `GIFEncoder({ auto: false })` to write a 'chunk' of GIF without a header or end-of-stream
 - Send the encoded bytes view back to the main thread, which will store the chunk into a linear array
 - Once all streams have been encoded and their workers responded with encoded chunks, you can write all frames sequentially into a single GIF stream
 
-(TODO: It would be good to have an example of this in the `test` folder!)
+There is an example of this in [./test/encode_web_workers.html](./test/encode_web_workers.html) which uses [./test/worker.js](./test/worker.js). Future versions of this library might include a pre-bundled worker API built-in for easier use.
 
 ## How GIF Encoding Works
 
@@ -184,6 +192,40 @@ For each frame in your animation (or, just a single frame for still images):
 3. Now, we can *encode* this single frame by writing the indexed bitmap and local palette. This will compress the pixel data with GIF/LZW encoding, and add it to the GIF stream.
 
 There's some situations where you might need to change the way you approach these steps. For example, if you decide to use a single global 256-color palette for a whole animation, you might only need to *quantize* once, and then *applyPalette* to each frame by reducing to the same global palette. In some other cases, you might choose to add *prequantization* or *postquantization* to speed up and improve the quantization results, or perhaps skip steps #2 and #3 if you already have indexed images. Or, you might choose to use dithering, or perhaps another quantizer entirely.
+
+## Running from Source
+
+Git clone this repo, then:
+
+```sh
+npm install
+```
+
+To run the node test:
+
+```sh
+node test/encode_node.js
+```
+
+And check `test/output/` folder for the result. Or to benchmark with node:
+
+```sh
+# re-build from source
+npm run dist:cjs
+
+# run benchmark
+node test/bench_node.js
+```
+
+Benchmarking/profiling is probably easier with Chrome, and this imports the source directly rather than built version:
+
+```sh
+npm run serve
+```
+
+Now navigate to [http://localhost:5000/test/bench_web.html](http://localhost:5000/test/bench_web.html).
+
+Similarly, while serving you can 
 
 ## More to Come
 
